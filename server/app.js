@@ -24,6 +24,7 @@ app.post('/login', UserController.login)
 app.post('/register', UserController.register)
 // public anime listing
 app.get('/animes', Controller.AnimeList)
+app.get('/animes/:id', Controller.AnimeById)
 app.use(authentication)
 
 // MyList routes (requires authentication)

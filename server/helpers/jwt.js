@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 
-const JWT_SECRET = process.env.JWT_SECRET
+// fallback secret for test/dev when .env isn't loaded in the test runner
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-for-tests'
 
 const signToken = (payLoad) => {
     return jwt.sign(payLoad, JWT_SECRET)

@@ -1,5 +1,5 @@
 const { User } = require('../models');
-const { comparePassword } = require('../helpers/formatter');
+// use model's comparePassword to keep bcrypt implementation consistent
 const { signToken } = require('../helpers/jwt');
 
 class UserController {
@@ -24,7 +24,7 @@ class UserController {
       }
       
 
-      const valid = comparePassword(password, user.password);
+      const valid = await User.comparePassword(password, user.password);
       if (!valid) {
         const error = new Error('Invalid email or password');
         error.name = 'InvalidLogin';
