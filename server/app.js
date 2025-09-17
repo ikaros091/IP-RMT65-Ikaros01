@@ -5,8 +5,9 @@ const express = require('express');
 const UserController = require('./controllers/userController');
 const authentication = require('./middlewares/authentication');
 const Controller = require('./controllers');
+const model = require('./helpers/gemini');
+const RecommendationController = require('./controllers/recommendationController');
 const app = express();
-const port = 3000;
 
 
 app.use(express.urlencoded({ extended: true }));
@@ -24,10 +25,28 @@ app.post('/register', UserController.register)
 // public anime listing
 app.get('/animes', Controller.AnimeList)
 app.use(authentication)
+
+// MyList routes (requires authentication)
+app.post('/mylist', Controller.addToList)
+app.get('/mylist', Controller.getMyList)
+app.get('/mylist/:id', Controller.getMyListById)
+app.put('/mylist/:id', Controller.updateMyList)
+app.delete('/mylist/:id', Controller.deleteMyList)
+
+// DEBUG: list available AI models (remove in production)
+app.get('/debug/models', async (req, res) => {
+  try {
+    const models = await require('./helpers/gemini').listAvailableModels();
+    res.json({ models });
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
 // error handler should be the last middleware
 app.use(errorHandler);
 
 
-app.listen(port, () => {
-  console.log(`http://localhost:${port}`);
-});
+
+
+module.exports = app
