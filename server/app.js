@@ -5,17 +5,12 @@ const express = require('express');
 const UserController = require('./controllers/userController');
 const authentication = require('./middlewares/authentication');
 const Controller = require('./controllers');
-const model = require('./helpers/gemini');
-const RecommendationController = require('./controllers/recommendationController');
+const cors = require('cors')
 const app = express();
 
-
+app.use(cors())
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
 
 app.use('/', router);
 
