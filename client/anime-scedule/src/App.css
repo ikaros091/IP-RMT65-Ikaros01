@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Animasi teks bergelombang */
+.wave-text span {
+  display: inline-block;
+  animation: wave 1.5s infinite;
+}
+@keyframes wave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* Gelombang laut (pakai inline SVG biar selalu tampil) */
+.wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 120px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0 C 300,100 900,100 1200,0 L1200,120 L0,120 Z' fill='%2300aaff'/%3E%3C/svg%3E") repeat-x;
+  background-size: 1200px 120px;
+}
+
+.wave1 {
+  animation: waveMove 7s linear infinite;
+  opacity: 0.4;
+  z-index: 5;
+}
+
+.wave2 {
+  animation: waveMove 11s linear infinite reverse;
+  opacity: 0.6;
+  z-index: 4;
+}
+
+.wave3 {
+  animation: waveMove 15s linear infinite ;
+  opacity: 0.9;
+  z-index: 3;
+}
+
+.wave4 {
+  animation: waveMove 9s linear infinite reverse;
+  opacity: 0.10;
+  z-index: 4;
+}
+
+@keyframes waveMove {
+  from { transform: translateX(0); }
+  to { transform: translateX(-1200px); }
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientFlow 5s ease infinite;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+/* Animasi pulse halus (beda dari Tailwind animate-pulse default) */
+@keyframes softPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-softPulse {
+  animation: softPulse 2s infinite;
+}
+
+
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+.animate-pop {
+  animation: pop 0.5s ease-out;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.scrolling-cards {
+  display: flex;
+  animation: scroll 20s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
