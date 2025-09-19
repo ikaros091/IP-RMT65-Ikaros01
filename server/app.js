@@ -1,4 +1,8 @@
-require('dotenv').config();
+console.log({ env: process.env.NODE_ENV })
+if(process.env.NODE_ENV !== "production"){
+
+   require('dotenv').config()
+}
 const router = require('./routers');
 const errorHandler = require('./middlewares/errorHandler');
 const express = require('express');
