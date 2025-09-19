@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { phase2Api } from '../helpers/http-client';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMyList, fetchAnimeById, updateMyListProgress, deleteFromMyList } from '../features/anime/animeSlice';
 
 function MyListById() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const dispatch = useDispatch();
 
+  const { myList } = useSelector((s) => s.anime);
   const [item, setItem] = useState(null); // mylist item
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -14,45 +17,51 @@ function MyListById() {
 
   useEffect(() => {
     let mounted = true;
-    async function load() {
+    async function loadFromStoreOrServer() {
       try {
         setLoading(true);
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          setError('Please login to view this page');
+        // try find in store
+        let found = Array.isArray(myList) ? myList.find((m) => String(m.id) === String(id)) : null;
+        if (!found) {
+          // fetch myList then try again
+          await dispatch(fetchMyList()).unwrap();
+          found = Array.isArray(myList) ? myList.find((m) => String(m.id) === String(id)) : null;
+        }
+        if (!found) {
+          setError('Item not found');
           return;
         }
-          const res = await phase2Api.get(`/mylist/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-          if (!mounted) return;
-          let data = res.data;
-          // if included Anime has no image or episodes, fetch from /animes/:anime_id
-          const animeIncluded = data.Anime || {};
-          if ((!animeIncluded.image_url || !animeIncluded.episodes) && data.anime_id) {
-            try {
-              const r2 = await phase2Api.get(`/animes/${data.anime_id}`);
-              data.Anime = { ...(data.Anime || {}), ...(r2.data || {}) };
-            } catch (e) {
-              // ignore fallback failure
-            }
+
+        // ensure Anime details are present; if not, fetch
+        if ((!found.Anime || !found.Anime.episodes || !found.Anime.image_url) && found.anime_id) {
+          try {
+            const ani = await dispatch(fetchAnimeById(found.anime_id)).unwrap();
+            found = { ...found, Anime: { ...(found.Anime || {}), ...(ani || {}) } };
+          } catch (_) {
+            // ignore
           }
-          setItem(data);
+        }
+
+        if (!mounted) return;
+        setItem(found);
+
         // initialize checked map based on data.progress and anime.episodes
-        const episodes = Number(data.Anime && data.Anime.episodes) || 0;
+        const episodes = Number(found.Anime && found.Anime.episodes) || 0;
         const map = {};
-        const watched = Number(data.progress) || 0;
+        const watched = Number(found.progress) || 0;
         for (let i = 1; i <= episodes; i++) {
           map[i] = i <= watched;
         }
         setCheckedMap(map);
       } catch (err) {
-        setError(err.response && err.response.data && err.response.data.message ? err.response.data.message : err.message || 'Failed to load');
+        setError(err && err.message ? err.message : 'Failed to load');
       } finally {
         setLoading(false);
       }
     }
-    load();
+    loadFromStoreOrServer();
     return () => { mounted = false };
-  }, [id]);
+  }, [id, myList, dispatch]);
 
   if (loading) return <div className="p-8">Loading...</div>;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
@@ -70,20 +79,22 @@ function MyListById() {
   }
 
   async function toggleEpisode(num) {
+    const prior = checkedMap;
     const newMap = { ...checkedMap, [num]: !checkedMap[num] };
     setCheckedMap(newMap);
     const checkedCount = Object.values(newMap).filter(Boolean).length;
-    // optimistic update: update server progress
     try {
       setUpdating(true);
-      const token = localStorage.getItem('access_token');
-      await phase2Api.put(`/mylist/${item.id}`, { progress: checkedCount }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await dispatch(updateMyListProgress({ id: item.id, progress: checkedCount }));
+      if (res.error) {
+        throw new Error('Update failed');
+      }
       // update local item.status and progress
       setItem((prev) => ({ ...prev, progress: checkedCount, status: computeStatusFromChecked(newMap) }));
     } catch (err) {
       alert('Failed to update progress');
       // revert
-      setCheckedMap(checkedMap);
+      setCheckedMap(prior);
     } finally {
       setUpdating(false);
     }
@@ -92,12 +103,15 @@ function MyListById() {
   async function removeItem() {
     if (!confirm('Remove this anime from your list?')) return;
     try {
-      const token = localStorage.getItem('access_token');
-      await phase2Api.delete(`/mylist/${item.id}`, { headers: { Authorization: `Bearer ${token}` } });
-  try { window.dispatchEvent(new CustomEvent('mylist:changed')); } catch (_) {}
-  navigate('/myList');
+      setUpdating(true);
+      const res = await dispatch(deleteFromMyList(item.id));
+      if (res.error) throw new Error('Delete failed');
+      try { window.dispatchEvent(new CustomEvent('mylist:changed')); } catch (_) {}
+      navigate('/myList');
     } catch (err) {
       alert('Failed to remove');
+    } finally {
+      setUpdating(false);
     }
   }
 

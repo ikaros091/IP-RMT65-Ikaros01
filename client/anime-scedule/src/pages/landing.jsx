@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { phase2Api } from '../helpers/http-client'
 import { useNavigate } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchAnimes } from '../features/anime/animeSlice'
 
 function LandingPage() {
   const [hidden, setHidden] = useState(false);
@@ -8,6 +9,8 @@ function LandingPage() {
   const [bgIndex, setBgIndex] = useState(0);
   const navigate = useNavigate();
   const scrollerRef = useRef(null);
+  const dispatch = useDispatch();
+  const auth = useSelector(s => s.auth);
 
   useEffect(() => {
     const registered = localStorage.getItem('registered');
@@ -20,11 +23,10 @@ function LandingPage() {
     let mounted = true;
     async function loadTop() {
       try {
-        // request a small page sorted by score (server supports sort param)
-        const res = await phase2Api.get('/animes', { params: { page: 1, limit: 10, sort: 'score' } });
+        const res = await dispatch(fetchAnimes({ page: 1, limit: 10, sort: 'score' }));
+        const payload = res && res.payload && res.payload.data ? res.payload.data : [];
         if (!mounted) return;
-        const data = res && res.data && Array.isArray(res.data.data) ? res.data.data : [];
-        const top5 = data.slice(0, 5);
+        const top5 = payload.slice(0, 5);
         setTopAnimes(top5);
 
         // Preload images
@@ -39,7 +41,7 @@ function LandingPage() {
     }
     loadTop();
     return () => { mounted = false };
-  }, []);
+  }, [dispatch]);
 
   // background slideshow (fade)
   useEffect(() => {
@@ -71,7 +73,7 @@ function LandingPage() {
 
         <h1 className="relative text-5xl font-bold z-10">AnimeList</h1>
         <div className="relative z-10 mt-4 flex gap-4">
-          {!hidden ? (
+          {!hidden && !auth.token ? (
             <>
               <button className="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded-md shadow-md" onClick={() => navigate('/login')}>
                 Login

@@ -1,35 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { phase2Api } from '../helpers/http-client';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMyList } from '../features/anime/animeSlice';
 
 function Mylist() {
   const navigate = useNavigate();
-  const [lists, setLists] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const { myList: lists, loading, error } = useSelector((s) => s.anime);
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          setError('Please login to see your list');
-          return;
-        }
-        const res = await phase2Api.get('/mylist', { headers: { Authorization: `Bearer ${token}` } });
-        if (!mounted) return;
-        setLists(res.data || []);
-      } catch (err) {
-        setError(err.response && err.response.data ? err.response.data.message || JSON.stringify(err.response.data) : err.message || 'Failed to load');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-    return () => { mounted = false };
-  }, []);
+    dispatch(fetchMyList());
+  }, [dispatch]);
 
   function getStatusStyle(status) {
     switch (status) {
@@ -55,7 +36,7 @@ function Mylist() {
       {error && <div className="text-center text-red-600 mb-4">{error}</div>}
 
       <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-        {lists.map((item) => (
+        {lists && lists.map((item) => (
           <div key={item.id} onClick={() => navigate(`/mylist/${item.id}`)} className="relative flex items-center gap-4 bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition transform hover:scale-105 cursor-pointer">
             <span className={`absolute top-2 right-2 px-3 py-1 text-sm font-semibold rounded-full border ${getStatusStyle(item.status)}`}>{item.status}</span>
             <img src={(item.Anime && item.Anime.image_url) || 'https://via.placeholder.com/100x140'} alt={(item.Anime && item.Anime.title) || '-'} className="w-20 h-28 object-cover rounded-md shadow" />

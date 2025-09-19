@@ -1,39 +1,26 @@
 import React, { useState } from "react";
-import { phase2Api } from "../helpers/http-client";
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser } from '../features/auth/authSlice';
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const { loading, error } = useSelector(s => s.auth);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError(null);
-    if (!email || !password) {
-      setError("Email and password are required");
-      return;
-    }
-    setLoading(true);
+    if (!email || !password) return; // simple validation
     try {
-      const res = await phase2Api.post("/login", { email, password });
-      const token = res?.data?.access_token;
-      if (token) {
-        // persist token and set header for future requests
-        localStorage.setItem("access_token", token);
-        phase2Api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        // clear any registered flag (now user logged in)
-        try { localStorage.removeItem('registered'); } catch (e) {}
-        // redirect to anime list page (client route)
-        window.location.href = "/animeList";
-      } else {
-        setError("Login succeeded but no token returned");
+      const res = await dispatch(loginUser({ email, password }));
+      if (res.error) {
+        // error handled via selector
+        return;
       }
+      // success, navigate to animeList
+      window.location.href = '/animeList';
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.response?.data || err.message || "Login failed";
-      setError(msg);
-    } finally {
-      setLoading(false);
+      // handled by slice
     }
   }
 
@@ -70,7 +57,7 @@ function Login() {
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
-          {error && <div className="mb-4 text-red-600">{String(error)}</div>}
+          {error && <div className="mb-4 text-red-600">{String(error && error.message ? error.message : error)}</div>}
           <button
             type="submit"
             disabled={loading}

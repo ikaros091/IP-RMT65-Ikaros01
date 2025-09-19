@@ -1,34 +1,26 @@
 import React, { useState } from "react";
-import { phase2Api } from "../helpers/http-client";
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser } from '../features/auth/authSlice';
 
 function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const { loading, error, registered } = useSelector(s => s.auth);
   const [success, setSuccess] = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    if (!username || !email || !password) {
-      setError("All fields are required");
-      return;
-    }
-    setLoading(true);
+    if (!username || !email || !password) return;
     try {
-      const res = await phase2Api.post("/register", { username, email, password });
-  setSuccess("Registration successful. You can now login.");
-  try { localStorage.setItem('registered', '1'); } catch (e) {}
-  // optionally redirect to login after a short delay
-  setTimeout(() => { window.location.href = '/login'; }, 900);
+      const res = await dispatch(registerUser({ username, email, password }));
+      if (!res.error) {
+        setSuccess('Registration successful. You can now login.');
+        setTimeout(() => { window.location.href = '/login'; }, 900);
+      }
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.response?.data || err.message || "Registration failed";
-      setError(msg);
-    } finally {
-      setLoading(false);
+      // handled by slice
     }
   }
 

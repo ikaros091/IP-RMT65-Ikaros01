@@ -9,7 +9,8 @@ import AnimeDetail from "./pages/animeDetail";
 import MyList from "./pages/myList";
 import MyListById from "./pages/MylistDetail";
 import LandingPage from "./pages/landing";
-
+import { Provider } from "react-redux";
+import { store } from "./store";
 
 function App() {
   const Layout = () => {
@@ -29,32 +30,34 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Halaman tanpa Sidebar */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    <Provider store={store}>
+      <BrowserRouter>
+        <Routes>
+          {/* Halaman tanpa Sidebar */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        <Route
-          element={
-            <div>
-              <Navbar />
-              <Outlet />
-            </div>
-          }
-        >
-          {/* Layout dengan Sidebar */}
-          <Route element={<Layout />}>
-            <Route path="/animeList" element={<AnimeList />} />
-            <Route path="/myList" element={<MyList />} />
-            {/* nanti tambahin route lain di sini */}
+          <Route
+            element={
+              <div>
+                <Navbar />
+                <Outlet />
+              </div>
+            }
+          >
+            {/* Layout dengan Sidebar */}
+            <Route element={<Layout />}>
+              <Route path="/animeList" element={<AnimeList />} />
+              <Route path="/myList" element={<MyList />} />
+              {/* nanti tambahin route lain di sini */}
+            </Route>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/animeList/:id" element={<AnimeDetail />} />
+            <Route path="/myList/:id" element={<MyListById />} />
           </Route>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/animeList/:id" element={<AnimeDetail />} />
-          <Route path="/myList/:id" element={<MyListById />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </Provider>
   );
 }
 

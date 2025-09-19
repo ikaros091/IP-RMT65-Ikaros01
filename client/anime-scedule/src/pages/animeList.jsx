@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { phase2Api } from "../helpers/http-client";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchAnimes, addToMyList, fetchMyList } from '../features/anime/animeSlice'
 
 function AnimeList() {
   const navigate = useNavigate();
 
   const [allAnimes, setAllAnimes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  
 
+  const dispatch = useDispatch();
+  const { animes, loading, error } = useSelector(state => state.anime);
   // UI state
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -25,22 +27,10 @@ function AnimeList() {
 
   // fetch all animes once (use a large limit) and derive genres
   useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      try {
-        setLoading(true);
-        // request many items so we can filter client-side (server supports limit)
-        const res = await phase2Api.get('/animes', { params: { page: 1, limit: 1000 } });
-        if (!isMounted) return;
-        setAllAnimes(res.data && res.data.data ? res.data.data : []);
-      } catch (err) {
-        setError(err.message || 'Failed to load');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-    return () => { isMounted = false };
+    // load via redux thunk; store large limit so client-side filtering is available
+    dispatch(fetchAnimes({ page: 1, limit: 1000 })).then(res => {
+      if (res && res.payload && res.payload.data) setAllAnimes(res.payload.data);
+    });
   }, []);
 
   // build unique genres from allAnimes
@@ -182,17 +172,11 @@ function AnimeList() {
             {localStorage.getItem('access_token') ? (
               <button onClick={async (e) => {
                 e.stopPropagation();
-                const token = localStorage.getItem('access_token');
-                if (!token) { alert('Please login'); return; }
                 try {
-                  const headers = { Authorization: `Bearer ${token}` };
-                  const existing = await phase2Api.get('/mylist', { headers });
-                  const exists = Array.isArray(existing.data) && existing.data.some((it) => {
-                    return (it.anime_id && Number(it.anime_id) === Number(a.id)) || (it.Anime && Number(it.Anime.id) === Number(a.id));
-                  });
-                  if (exists) { alert('Already in your MyList'); return; }
-                  await phase2Api.post('/mylist', { anime_id: a.id }, { headers });
-                  // notify other components (recommendation popup) to refresh
+                  const res = await dispatch(addToMyList(a.id));
+                  if (res.error) { alert('Failed to add'); return; }
+                  // refresh myList in store
+                  await dispatch(fetchMyList());
                   try { window.dispatchEvent(new CustomEvent('mylist:changed')); } catch (_) {}
                   alert('Added to your list');
                 } catch (err) {

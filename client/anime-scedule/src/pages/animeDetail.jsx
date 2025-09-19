@@ -1,57 +1,33 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { phase2Api } from '../helpers/http-client';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchAnimeById, addToMyList, fetchMyList } from '../features/anime/animeSlice';
 
 function AnimeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const [anime, setAnime] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { animeById: anime, loading, error } = useSelector((s) => s.anime);
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        setLoading(true);
-        const res = await phase2Api.get(`/animes/${id}`);
-        if (!mounted) return;
-        setAnime(res.data);
-      } catch (err) {
-        setError(err.response && err.response.data && err.response.data.message ? err.response.data.message : err.message || 'Failed to load');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-    return () => { mounted = false };
-  }, [id]);
+    if (!id) return;
+    dispatch(fetchAnimeById(id));
+  }, [dispatch, id]);
 
-  async function addToMyList() {
+  async function handleAddToMyList() {
+    if (!anime) return;
     try {
       setAdding(true);
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        alert('Please login to add to your list');
-        return;
+      const res = await dispatch(addToMyList(anime.id));
+      if (res.error) {
+        alert('Failed to add to list.');
+      } else {
+        dispatch(fetchMyList());
+        try { window.dispatchEvent(new CustomEvent('mylist:changed')); } catch (_) {}
+        alert('Added to your list');
       }
-
-      const headers = { Authorization: `Bearer ${token}` };
-      // check duplicates
-      const existing = await phase2Api.get('/mylist', { headers });
-      const exists = Array.isArray(existing.data) && existing.data.some((it) => {
-        return (it.anime_id && Number(it.anime_id) === Number(anime.id)) || (it.Anime && Number(it.Anime.id) === Number(anime.id));
-      });
-      if (exists) {
-        alert('This anime is already in your MyList');
-        return;
-      }
-
-      await phase2Api.post('/mylist', { anime_id: anime.id }, { headers });
-  try { window.dispatchEvent(new CustomEvent('mylist:changed')); } catch (_) {}
-  alert('Added to your list');
     } catch (err) {
       alert('Failed to add to list. Make sure you are logged in.');
     } finally {
@@ -60,10 +36,10 @@ function AnimeDetail() {
   }
 
   if (loading) return <div className="p-8">Loading...</div>;
-  if (error) return <div className="p-8 text-red-600">{error}</div>;
+  if (error) return <div className="p-8 text-red-600">{error && error.message ? error.message : JSON.stringify(error)}</div>;
   if (!anime) return null;
 
-  const genres = anime.genres ? String(anime.genres).split(',').map(g => g.trim()).filter(Boolean) : [];
+  const genres = anime.genres ? String(anime.genres).split(',').map((g) => g.trim()).filter(Boolean) : [];
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white min-h-screen flex justify-center items-center p-6">
@@ -92,7 +68,7 @@ function AnimeDetail() {
 
             {/* Button - only show if logged in */}
             {localStorage.getItem('access_token') ? (
-              <button onClick={addToMyList} disabled={adding} className="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-600 transition transform hover:scale-110">
+              <button onClick={handleAddToMyList} disabled={adding} className="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-600 transition transform hover:scale-110">
                 {adding ? 'Adding...' : '+ Add to My List'}
               </button>
             ) : null}

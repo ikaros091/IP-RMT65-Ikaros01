@@ -1,87 +1,63 @@
 import { useEffect, useState } from "react";
 import { FaHome, FaList, FaHeart, FaStar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { phase2Api } from "../helpers/http-client";
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchRecommendations, addToMyList, fetchMyList, fetchAnimes } from '../features/anime/animeSlice';
 
 function SideBar() {
   const navigate = useNavigate();
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("access_token"));
+  const dispatch = useDispatch();
+  const isLoggedIn = !!localStorage.getItem("access_token");
 
   // recommendation popup state
   const [recOpen, setRecOpen] = useState(false);
-  const [recs, setRecs] = useState([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
+  const { recommendations: recs, loading: loadingRecs } = useSelector(s => s.anime);
 
   useEffect(() => {
-    const onStorage = () => setIsLoggedIn(!!localStorage.getItem("access_token"));
+    const onStorage = () => {};
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   if (!isLoggedIn) return null; // sidebar hidden when not logged in
 
-  async function fetchRecommendations() {
-    setLoadingRecs(true);
-    try {
-      const token = localStorage.getItem("access_token");
-      const res = await phase2Api.get("/recommendations", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const list = (res && res.data && Array.isArray(res.data.recommendations)) ? res.data.recommendations : [];
-      setRecs(list);
-    } catch (err) {
-      console.error("Failed to load recommendations", err);
-      setRecs([]);
-      // keep silent but inform user if popup open
-      if (recOpen) window.alert("Gagal memuat rekomendasi. Coba lagi nanti.");
-    } finally {
-      setLoadingRecs(false);
-    }
-  }
-
   async function openRecommendations() {
     setRecOpen(true);
-    // fetch fresh recommendations
-    await fetchRecommendations();
+    try {
+      await dispatch(fetchRecommendations()).unwrap();
+    } catch (err) {
+      if (recOpen) window.alert("Gagal memuat rekomendasi. Coba lagi nanti.");
+    }
   }
 
   async function handleAddRecommendation(rec) {
     try {
-      const token = localStorage.getItem("access_token");
-      if (!token) return window.alert("Harap login untuk menambahkan ke My List.");
+      if (!isLoggedIn) return window.alert("Harap login untuk menambahkan ke My List.");
 
-      // Try to find the anime in DB by searching title
-      const searchRes = await phase2Api.get("/animes", { params: { search: rec.title, limit: 5 } });
-      const candidates = searchRes && searchRes.data && Array.isArray(searchRes.data.data) ? searchRes.data.data : [];
-
-      if (candidates.length === 0) {
-        return window.alert("Tidak menemukan anime yang sesuai di database untuk ditambahkan.");
+      // search by title to find ID via redux thunk
+      let candidates = [];
+      try {
+        const r = await dispatch(fetchAnimes({ search: rec.title, limit: 5 }));
+        candidates = (r && r.payload && Array.isArray(r.payload.data)) ? r.payload.data : [];
+      } catch (_) {
+        candidates = [];
       }
 
-      // pick best match: exact title match (case-insensitive) else first candidate
+      if (candidates.length === 0) return window.alert("Tidak menemukan anime yang sesuai di database untuk ditambahkan.");
       const matched = candidates.find(a => a.title && a.title.toLowerCase() === rec.title.toLowerCase()) || candidates[0];
 
-      // check duplicates in user's mylist
-      const mylistRes = await phase2Api.get("/mylist", { headers: { Authorization: `Bearer ${token}` } });
-      const mylists = mylistRes && mylistRes.data ? mylistRes.data : [];
+      // check duplicates in store
+      const mylists = (await dispatch(fetchMyList()).unwrap()) || [];
       const exists = mylists.some(m => (m.anime_id && matched.id && Number(m.anime_id) === Number(matched.id)) || (m.Anime && m.Anime.title && matched.title && m.Anime.title === matched.title));
       if (exists) return window.alert("Anime sudah ada di My List Anda.");
 
-      // Add to mylist
-      await phase2Api.post(
-        "/mylist",
-        { anime_id: matched.id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // notify other parts of app that mylist changed so recommendations can refresh
+      const res = await dispatch(addToMyList(matched.id));
+      if (res.error) throw res.error;
       try { window.dispatchEvent(new CustomEvent('mylist:changed')); } catch (_) {}
-
       window.alert("Berhasil ditambahkan ke My List");
     } catch (err) {
       console.error("Failed to add recommendation to mylist", err);
-      // if server returns validation error, show message
-      const message = err && err.response && err.response.data && err.response.data.message ? err.response.data.message : "Gagal menambahkan. Coba lagi.";
+      const message = err && err.message ? err.message : "Gagal menambahkan. Coba lagi.";
       window.alert(message);
     }
   }
@@ -89,12 +65,11 @@ function SideBar() {
   // refresh recommendations when mylist changes (so genres-based recommendations update)
   useEffect(() => {
     const onMyListChanged = () => {
-      // fetch new recommendations in background
-      fetchRecommendations();
+      dispatch(fetchRecommendations()).catch(() => {});
     };
     window.addEventListener('mylist:changed', onMyListChanged);
     return () => window.removeEventListener('mylist:changed', onMyListChanged);
-  }, []);
+  }, [dispatch]);
 
   return (
     <div className="h-screen w-64 bg-gradient-to-b from-blue-50 via-blue-100 to-blue-200 shadow-lg flex flex-col p-6">
@@ -132,7 +107,7 @@ function SideBar() {
               <div className="text-center py-10">Loading...</div>
             ) : (
               <div className="flex gap-4 overflow-x-auto px-2 py-2">
-                {recs.length === 0 && (
+                {(!recs || recs.length === 0) && (
                   // show 4 placeholders when no recommendations
                   Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="flex-shrink-0 w-64 bg-gray-50 rounded-lg p-3 flex flex-col items-center">
@@ -147,8 +122,7 @@ function SideBar() {
                   ))
                 )}
 
-                {recs.length > 0 && (
-                  // ensure at least 4 cards are rendered (fill with placeholders if needed)
+                {recs && recs.length > 0 && (
                   Array.from({ length: Math.max(recs.length, 4) }).map((_, idx) => {
                     const r = recs[idx];
                     if (!r) {

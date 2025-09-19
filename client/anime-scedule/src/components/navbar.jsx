@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout } from '../features/auth/authSlice';
 
 function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const dispatch = useDispatch();
+  const auth = useSelector(s => s.auth);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const t = localStorage.getItem('access_token');
-    setIsLoggedIn(!!t);
+  const t = localStorage.getItem('access_token');
+  setIsLoggedIn(!!t);
     // listen storage changes from other tabs
     const onStorage = () => setIsLoggedIn(!!localStorage.getItem('access_token'));
     window.addEventListener('storage', onStorage);
@@ -16,9 +20,7 @@ function Navbar() {
 
   function handleAuthClick() {
     if (isLoggedIn) {
-      // logout
-      localStorage.removeItem('access_token');
-      try { delete window.phase2Api; } catch (e) {}
+      dispatch(logout());
       setIsLoggedIn(false);
       window.location.href = '/';
     } else {
