@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMyList, fetchAnimeById, updateMyListProgress, deleteFromMyList } from '../features/anime/animeSlice';
 
@@ -113,6 +113,11 @@ function MyListById() {
     } finally {
       setUpdating(false);
     }
+  }
+
+const accessToken = localStorage.getItem("access_token");
+  if (!accessToken) {
+    return <Navigate to="/login" />;
   }
 
   return (
