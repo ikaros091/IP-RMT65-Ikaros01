@@ -17,6 +17,7 @@ app.use('/', router);
 
 app.post('/login', UserController.login)
 app.post('/register', UserController.register)
+app.post('/login/google', UserController.googleLogin)
 // public anime listing
 app.get('/animes', Controller.AnimeList)
 app.get('/animes/:id', Controller.AnimeById)

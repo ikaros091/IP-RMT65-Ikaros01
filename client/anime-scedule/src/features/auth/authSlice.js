@@ -25,6 +25,20 @@ export const registerUser = createAsyncThunk('auth/register', async ({ username,
   }
 });
 
+export const loginWithGoogle = createAsyncThunk('auth/loginWithGoogle', async ({ id_token }, { rejectWithValue }) => {
+  try {
+    const res = await phase2Api.post('/login/google', { id_token });
+    const token = res?.data?.access_token;
+    if (token) {
+      try { localStorage.setItem('access_token', token); } catch (_) {}
+      phase2Api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    return res.data;
+  } catch (err) {
+    return rejectWithValue(err.response && err.response.data ? err.response.data : { message: err.message });
+  }
+});
+
 const initialState = {
   token: typeof window !== 'undefined' ? (localStorage.getItem('access_token') || null) : null,
   loading: false,
@@ -53,6 +67,9 @@ const authSlice = createSlice({
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null })
       .addCase(registerUser.fulfilled, (state, action) => { state.loading = false; state.registered = true })
       .addCase(registerUser.rejected, (state, action) => { state.loading = false; state.error = action.payload || action.error })
+      .addCase(loginWithGoogle.pending, (state) => { state.loading = true; state.error = null })
+      .addCase(loginWithGoogle.fulfilled, (state, action) => { state.loading = false; state.token = action.payload && action.payload.access_token ? action.payload.access_token : state.token })
+      .addCase(loginWithGoogle.rejected, (state, action) => { state.loading = false; state.error = action.payload || action.error })
   }
 });
 
